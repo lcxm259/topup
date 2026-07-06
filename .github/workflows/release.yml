@@ -1,0 +1,41 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Release
+        run: |
+          xcodebuild build \
+            -project TopUp.xcodeproj \
+            -scheme TopUp \
+            -configuration Release \
+            -destination 'platform=macOS' \
+            -derivedDataPath DerivedData
+
+      - name: Package
+        run: |
+          mkdir -p dist
+          APP_PATH="DerivedData/Build/Products/Release/TopUp.app"
+          VERSION="${GITHUB_REF_NAME#v}"
+          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "dist/TopUp-${VERSION}-macOS.zip"
+          hdiutil create -volname "账户解析" -srcfolder "$APP_PATH" -ov -format UDZO "dist/TopUp-${VERSION}-macOS.dmg"
+
+      - name: Upload Release Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/TopUp-*-macOS.zip
+            dist/TopUp-*-macOS.dmg
+          generate_release_notes: true
